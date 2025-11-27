@@ -247,6 +247,13 @@ components:
           type: integer
         message:
           type: string
+        warnings:
+          type: object
+          description: Warnings from the provider. The key is the affected package URL, the value is an array of warning messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
     Source:
       type: object
       properties:
