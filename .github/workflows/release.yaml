@@ -1,9 +1,12 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+---
 name: Release
+
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Custom version (optional)'
+        description: 'Custom version (optional, e.g., 1.2.3)'
         required: false
         type: string
 
@@ -18,28 +21,17 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      
-      - name: Import GPG key for Maven
-        run: |
-          mkdir -p ~/.gnupg
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -47,112 +39,63 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Set version
-        if: github.event.inputs.version != ''
-        run: mvn -B versions:set -DnewVersion=${{ github.event.inputs.version }} -DgenerateBackupPoms=false
-
-      - name: Remove snapshot
-        if: github.event.inputs.version == ''
-        run: mvn -B versions:set -DremoveSnapshot -DgenerateBackupPoms=false
-
-      - name: Get version
-        id: get_version
-        run: echo "version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
-
-      - name: Check if NPM package version exists
-        id: check_npm
+      - name: Set release version
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          echo "Checking if NPM package version $VERSION exists..."
-          if npm view @trustify-da/trustify-da-api-model@$VERSION version 2>/dev/null; then
-            echo "npm_exists=true" >> $GITHUB_OUTPUT
-            echo "NPM package version $VERSION already exists, skipping NPM publish"
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            mvn -B versions:set -DnewVersion=${{ github.event.inputs.version }} -DgenerateBackupPoms=false
           else
-            echo "npm_exists=false" >> $GITHUB_OUTPUT
-            echo "NPM package version $VERSION does not exist, will publish"
+            mvn -B versions:set -DremoveSnapshot -DgenerateBackupPoms=false
           fi
-        continue-on-error: true
 
-      - name: Check if Maven artifact version exists
-        id: check_maven
+      - name: Generate filtered resources for release
+        run: mvn -B process-resources
+
+      - name: Get release version
+        id: version
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          GROUP_ID="io.github.guacsec"
-          ARTIFACT_ID="trustify-da-api-model"
-          echo "Checking if Maven artifact $GROUP_ID:$ARTIFACT_ID:$VERSION exists..."
+          V=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$V" >> $GITHUB_OUTPUT
 
-          # Check Maven Central for the artifact
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/guacsec/trustify-da-api-model/$VERSION/trustify-da-api-model-$VERSION.pom")
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "maven_exists=true" >> $GITHUB_OUTPUT
-            echo "Maven artifact $GROUP_ID:$ARTIFACT_ID:$VERSION already exists, skipping Maven publish"
-          else
-            echo "maven_exists=false" >> $GITHUB_OUTPUT
-            echo "Maven artifact $GROUP_ID:$ARTIFACT_ID:$VERSION does not exist (HTTP $HTTP_CODE), will publish"
-          fi
-        continue-on-error: true
-
-      - name: Show artifact check results
+      - name: Create release branch
         run: |
-          echo "=== Artifact Check Results ==="
-          echo "NPM package exists: ${{ steps.check_npm.outputs.npm_exists }}"
-          echo "Maven artifact exists: ${{ steps.check_maven.outputs.maven_exists }}"
-          echo "Will publish: ${{ steps.check_npm.outputs.npm_exists == 'false' || steps.check_maven.outputs.maven_exists == 'false' }}"
+          BRANCH="release/v${{ steps.version.outputs.version }}"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "build(release): release version ${{ steps.version.outputs.version }}"
+          git push origin "$BRANCH"
 
-      - name: Compute Maven profiles
-        id: compute_profiles
-        run: |
-          PROFILES="gpg-sign,release-npm"
-          if [ "${{ steps.check_npm.outputs.npm_exists }}" = "false" ]; then
-            PROFILES="${PROFILES},publish-npm"
-          fi
-          if [ "${{ steps.check_maven.outputs.maven_exists }}" = "false" ]; then
-            PROFILES="${PROFILES},publish-maven"
-          fi
-          PROFILES="${PROFILES#,}"
-          echo "profiles=-P$PROFILES" >> $GITHUB_OUTPUT
-
-      - name: Build and Publish to Maven Central and NPM registry
-        if: steps.check_npm.outputs.npm_exists == 'false' || steps.check_maven.outputs.maven_exists == 'false'
-        run: mvn -B deploy ${{ steps.compute_profiles.outputs.profiles }} --settings .github/workflows/maven/settings.xml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-
-      - name: Skip publishing - artifacts already exist
-        if: steps.check_npm.outputs.npm_exists == 'true' && steps.check_maven.outputs.maven_exists == 'true'
-        run: |
-          echo "Both NPM package and Maven artifact already exist, skipping publish step"
-          echo "NPM exists: ${{ steps.check_npm.outputs.npm_exists }}"
-          echo "Maven exists: ${{ steps.check_maven.outputs.maven_exists }}"
-
-      - name: Create Release
-        id: create_release
+      - name: Create GitHub release tag
         uses: softprops/action-gh-release@v1
         with:
-          name: Release ${{ github.event.inputs.version || steps.get_version.outputs.version }}
-          tag_name: v${{ github.event.inputs.version || steps.get_version.outputs.version }}
+          name: "Release ${{ steps.version.outputs.version }}"
+          tag_name: "v${{ steps.version.outputs.version }}"
+          target_commitish: "release/v${{ steps.version.outputs.version }}"
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update to next version
-        if: success()
+      - name: Update to next development version
         run: |
           mvn -B release:update-versions
-          # Run the phase that triggers README.md update
+          mvn -B process-resources
           mvn -B validate
+          git add -A
+          git commit -m "chore: bump to next development version"
 
-      - name: Create Pull Request with next version
-        id: cpr
+      - name: Create Pull Request for release + next version
         uses: peter-evans/create-pull-request@v5
         with:
-          commit-message: "build(release): update to next development version"
-          branch: chore/bump-version
-          title: "chore: bump to next development version"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/v${{ steps.version.outputs.version }}
+          base: main
+          title: "build(release): release ${{ steps.version.outputs.version }} and bump to next development version"
+          commit-message: "build(release): release ${{ steps.version.outputs.version }} + bump next version"
           signoff: true
           body: |
-            This PR updates the project to the next development version after the release.
+            This PR contains the following changes:
+
+            1. Release version bump to ${{ steps.version.outputs.version }}.
+            2. Filtered resources (docs, JS) updated to reflect the release version.
+            3. Next development version bump after the release.
