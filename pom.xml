@@ -49,8 +49,7 @@
     <node.version>v20.9.0</node.version>
     <yarn.version>v1.22.19</yarn.version>
     <!-- NPM Publishing -->
-    <rc.version>0</rc.version>
-    <npm.version>${version.release}-rc.${rc.version}</npm.version>
+    <npm.version>${version.release}</npm.version>
   </properties>
 
   <licenses>

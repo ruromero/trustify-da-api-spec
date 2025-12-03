@@ -34,7 +34,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20.x'
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Import GPG key for Maven
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build and Publish to Maven Central
         run: |
-          mvn -B deploy -Pgpg-sign,publish-maven -Drc.version=${{ github.run_number }} --file pom.xml --settings .github/workflows/maven/settings.xml
+          mvn -B deploy -Pgpg-sign,publish-maven --file pom.xml --settings .github/workflows/maven/settings.xml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -56,7 +56,10 @@ jobs:
       - name: Publish to NPM registry (EA)
         working-directory: target/js-api
         run: |
-          npm publish --tag rc --access public --provenance
+          SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
+          EA_VERSION="$(npm pkg get version | tr -d \")-ea.${SHORT_SHA}"
+          npm version "$EA_VERSION" --no-git-tag-version
+          npm publish --verbose --tag ea --access public --provenance
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -73,7 +76,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20.x'
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Import GPG key for Maven
@@ -140,7 +143,7 @@ jobs:
         if: steps.check_npm.outputs.npm_exists == 'false'
         working-directory: target/js-api
         run: |
-          npm publish --access public --provenance
+          npm publish --verbose --access public --provenance
 
       - name: Skip publishing - artifacts already exist
         if: steps.check_npm.outputs.npm_exists == 'true' && steps.check_maven.outputs.maven_exists == 'true'
