@@ -51,7 +51,6 @@
     <!-- NPM Publishing -->
     <rc.version>0</rc.version>
     <npm.version>${version.release}-rc.${rc.version}</npm.version>
-    <npm.tag>--tag rc</npm.tag>
   </properties>
 
   <licenses>
