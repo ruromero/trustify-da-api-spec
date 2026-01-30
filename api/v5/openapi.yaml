@@ -192,7 +192,60 @@ paths:
               schema:
                 type: string
                 description: Missing token
-
+  /licenses:
+    post:
+      operationId: fetchLicenses
+      summary: Fetch licenses for a set of package URLs
+      security:
+        - BearerAuth: []
+        - DynamicVulnSourceAuth: []
+        - {}
+      requestBody:
+        required: true
+        description: List of package URLs (purls) to fetch licenses for
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LicensesRequest'
+      responses:
+        '200':
+          description: Successful license fetch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicensesResponse'
+              example:
+                summary:
+                  total: 2
+                  permissive: 1
+                  weak-copyleft: 1
+                  strong-copyleft: 1
+                  unknown: 0
+                licenses:
+                  pkg:maven/org.apache/commons-lang3@3.12.0:
+                    - identifiers:
+                        - MIT
+                      expression: MIT
+                      name: MIT License
+                      category: PERMISSIVE
+                      source: package-metadata
+                      sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
+                  pkg:maven/org.glassfish/jakarta.json@2.0.1:
+                    - identifiers:
+                        - EPL-2.0
+                        - GPL-2.0-with-classpath-exception
+                      expression: EPL-2.0 OR GPL-2.0-with-classpath-exception
+                      name: EPL-2.0 OR GPL-2.0 with Classpath Exception
+                      category: WEAK_COPYLEFT
+                      source: package-metadata
+                      sourceUrl: https://github.com/eclipse-ee4j/jsonp/blob/2.0.1/LICENSE.md
+        '422':
+          description: Invalid request
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Error message
 components:
   securitySchemes:
     DynamicVulnSourceAuth:
@@ -213,6 +266,8 @@ components:
           $ref: '#/components/schemas/Scanned'
         providers:
           $ref: '#/components/schemas/Providers'
+        licenses:
+          $ref: '#/components/schemas/LicensesResponse'
     Scanned:
       type: object
       description: Number of dependencies scanned
@@ -421,3 +476,61 @@ components:
           $ref: '#/components/schemas/PackageRef'
         reason:
           type: string
+    LicensesRequest:
+      type: array
+      description: List of package URLs (purls) to fetch license information for
+      items:
+        $ref: '#/components/schemas/PackageRef'
+    LicensesResponse:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/LicensesSummary'
+        licenses:
+          type: object
+          description: Package purl as key, array of license info as value
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/LicenseInfo'
+    LicensesSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        permissive:
+          type: integer
+        weak-copyleft:
+          type: integer
+        strong-copyleft:
+          type: integer
+        unknown:
+          type: integer
+    LicenseInfo:
+      type: object
+      properties:
+        identifiers:
+          type: array
+          description: List of license identifiers found for the package
+          items:
+            type: string
+        expression:
+          type: string
+          description: SPDX license expression
+        name:
+          type: string
+          description: Human readable license name
+        category:
+          description: Category of the license
+          type: string
+          enum:
+            - PERMISSIVE
+            - WEAK_COPYLEFT
+            - STRONG_COPYLEFT
+            - UNKNOWN
+        source:
+          type: string
+          description: Source of the license information
+        sourceUrl:
+          type: string
+          description: URL of the source of the license information
