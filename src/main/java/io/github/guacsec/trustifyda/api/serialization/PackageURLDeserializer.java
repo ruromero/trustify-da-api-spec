@@ -27,8 +27,7 @@ import com.github.packageurl.MalformedPackageURLException;
 import com.github.packageurl.PackageURL;
 
 /**
- * Deserializes {@link PackageURL} from either a JSON string (purl) or a JSON object
- * with type, namespace, name, version.
+ * Deserializes {@link PackageURL} from a JSON string (purl).
  */
 public class PackageURLDeserializer extends JsonDeserializer<PackageURL> {
 

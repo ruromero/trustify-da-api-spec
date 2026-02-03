@@ -493,14 +493,16 @@ components:
           type: object
           description: Package purl as key, array of license info as value
           additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/LicenseInfo'
+            $ref: '#/components/schemas/PackageLicenseResult'
     LicensesSummary:
       type: object
       properties:
         total:
           type: integer
+          description: Total number of licenses found. Including packages with multiple licenses.
+        concluded:
+          type: integer
+          description: Number of licenses that were concluded.
         permissive:
           type: integer
         weak-copyleft:
@@ -509,6 +511,15 @@ components:
           type: integer
         unknown:
           type: integer
+    PackageLicenseResult:
+      type: object
+      properties:
+        concluded:
+          $ref: '#/components/schemas/LicenseInfo'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/LicenseInfo'
     LicenseInfo:
       type: object
       properties:
