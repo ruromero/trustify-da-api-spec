@@ -223,22 +223,22 @@ paths:
                   unknown: 0
                 licenses:
                   pkg:maven/org.apache/commons-lang3@3.12.0:
-                    - identifiers:
+                    concluded:
+                      identifiers:
                         - MIT
                       expression: MIT
                       name: MIT License
                       category: PERMISSIVE
                       source: package-metadata
                       sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
-                  pkg:maven/org.glassfish/jakarta.json@2.0.1:
-                    - identifiers:
-                        - EPL-2.0
-                        - GPL-2.0-with-classpath-exception
-                      expression: EPL-2.0 OR GPL-2.0-with-classpath-exception
-                      name: EPL-2.0 OR GPL-2.0 with Classpath Exception
-                      category: WEAK_COPYLEFT
-                      source: package-metadata
-                      sourceUrl: https://github.com/eclipse-ee4j/jsonp/blob/2.0.1/LICENSE.md
+                    evidence:
+                      - identifiers:
+                          - MIT
+                        expression: MIT
+                        name: MIT License
+                        category: PERMISSIVE
+                        source: package-metadata
+                        sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
         '422':
           description: Invalid request
           content:
@@ -485,15 +485,21 @@ components:
           items:
             $ref: '#/components/schemas/PackageRef'
     LicensesResponse:
-      type: object
-      properties:
-        summary:
-          $ref: '#/components/schemas/LicensesSummary'
-        licenses:
-          type: object
-          description: Package purl as key, array of license info as value
-          additionalProperties:
-            $ref: '#/components/schemas/PackageLicenseResult'
+      type: array
+      items:
+        $ref: '#/components/schemas/LicenseProviderResult'
+    LicenseProviderResult:
+        type: object
+        properties:
+          status:
+            $ref: '#/components/schemas/ProviderStatus'
+          summary:
+            $ref: '#/components/schemas/LicensesSummary'
+          packages:
+            type: object
+            description: Package purl as key, license result as value
+            additionalProperties:
+              $ref: '#/components/schemas/PackageLicenseResult'
     LicensesSummary:
       type: object
       properties:
