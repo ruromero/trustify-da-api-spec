@@ -215,30 +215,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/LicensesResponse'
               example:
-                summary:
-                  total: 2
-                  permissive: 1
-                  weak-copyleft: 1
-                  strong-copyleft: 1
-                  unknown: 0
-                licenses:
-                  pkg:maven/org.apache/commons-lang3@3.12.0:
-                    concluded:
-                      identifiers:
-                        - MIT
-                      expression: MIT
-                      name: MIT License
-                      category: PERMISSIVE
-                      source: package-metadata
-                      sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
-                    evidence:
-                      - identifiers:
+                - status:
+                    ok: true
+                    name: deps.dev
+                    code: 200
+                    message: OK
+                  summary:
+                    total: 2
+                    permissive: 1
+                    weak-copyleft: 1
+                    strong-copyleft: 1
+                    unknown: 0
+                  packages:
+                    pkg:maven/org.apache/commons-lang3@3.12.0:
+                      concluded:
+                        identifiers:
                           - MIT
                         expression: MIT
                         name: MIT License
                         category: PERMISSIVE
                         source: package-metadata
                         sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
+                      evidence:
+                        - identifiers:
+                            - MIT
+                          expression: MIT
+                          name: MIT License
+                          category: PERMISSIVE
+                          source: package-metadata
+                          sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
         '422':
           description: Invalid request
           content:
