@@ -5,7 +5,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: 5.0.0
+  version: 5.1.0
 servers:
   - url: /api/v5
     description: API v5 endpoint
@@ -192,7 +192,65 @@ paths:
               schema:
                 type: string
                 description: Missing token
-
+  /licenses:
+    post:
+      operationId: fetchLicenses
+      summary: Fetch licenses for a set of package URLs
+      security:
+        - BearerAuth: []
+        - DynamicVulnSourceAuth: []
+        - {}
+      requestBody:
+        required: true
+        description: List of package URLs (purls) to fetch licenses for
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LicensesRequest'
+      responses:
+        '200':
+          description: Successful license fetch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicensesResponse'
+              example:
+                - status:
+                    ok: true
+                    name: deps.dev
+                    code: 200
+                    message: OK
+                  summary:
+                    total: 2
+                    permissive: 1
+                    weak-copyleft: 1
+                    strong-copyleft: 1
+                    unknown: 0
+                  packages:
+                    pkg:maven/org.apache/commons-lang3@3.12.0:
+                      concluded:
+                        identifiers:
+                          - MIT
+                        expression: MIT
+                        name: MIT License
+                        category: PERMISSIVE
+                        source: package-metadata
+                        sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
+                      evidence:
+                        - identifiers:
+                            - MIT
+                          expression: MIT
+                          name: MIT License
+                          category: PERMISSIVE
+                          source: package-metadata
+                          sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
+        '422':
+          description: Invalid request
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Error message
 components:
   securitySchemes:
     DynamicVulnSourceAuth:
@@ -213,6 +271,8 @@ components:
           $ref: '#/components/schemas/Scanned'
         providers:
           $ref: '#/components/schemas/Providers'
+        licenses:
+          $ref: '#/components/schemas/LicensesResponse'
     Scanned:
       type: object
       description: Number of dependencies scanned
@@ -421,3 +481,81 @@ components:
           $ref: '#/components/schemas/PackageRef'
         reason:
           type: string
+    LicensesRequest:
+      type: object
+      description: List of package URLs (purls) to fetch license information for
+      properties:
+        purls:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageRef'
+    LicensesResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/LicenseProviderResult'
+    LicenseProviderResult:
+        type: object
+        properties:
+          status:
+            $ref: '#/components/schemas/ProviderStatus'
+          summary:
+            $ref: '#/components/schemas/LicensesSummary'
+          packages:
+            type: object
+            description: Package purl as key, license result as value
+            additionalProperties:
+              $ref: '#/components/schemas/PackageLicenseResult'
+    LicensesSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of licenses found. Including packages with multiple licenses.
+        concluded:
+          type: integer
+          description: Number of licenses that were concluded.
+        permissive:
+          type: integer
+        weak-copyleft:
+          type: integer
+        strong-copyleft:
+          type: integer
+        unknown:
+          type: integer
+    PackageLicenseResult:
+      type: object
+      properties:
+        concluded:
+          $ref: '#/components/schemas/LicenseInfo'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/LicenseInfo'
+    LicenseInfo:
+      type: object
+      properties:
+        identifiers:
+          type: array
+          description: List of license identifiers found for the package
+          items:
+            type: string
+        expression:
+          type: string
+          description: SPDX license expression
+        name:
+          type: string
+          description: Human readable license name
+        category:
+          description: Category of the license
+          type: string
+          enum:
+            - PERMISSIVE
+            - WEAK_COPYLEFT
+            - STRONG_COPYLEFT
+            - UNKNOWN
+        source:
+          type: string
+          description: Source of the license information
+        sourceUrl:
+          type: string
+          description: URL of the source of the license information

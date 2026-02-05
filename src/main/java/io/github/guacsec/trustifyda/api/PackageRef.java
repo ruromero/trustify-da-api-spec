@@ -19,11 +19,14 @@ package io.github.guacsec.trustifyda.api;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.github.packageurl.MalformedPackageURLException;
 import com.github.packageurl.PackageURL;
 
+import io.github.guacsec.trustifyda.api.serialization.PackageURLDeserializer;
 import io.github.guacsec.trustifyda.api.serialization.PackageURLSerializer;
 
 public class PackageRef {
@@ -43,7 +46,8 @@ public class PackageRef {
     }
   }
 
-  public PackageRef(PackageURL purl) {
+  @JsonCreator
+  public PackageRef(@JsonDeserialize(using = PackageURLDeserializer.class) PackageURL purl) {
     Objects.requireNonNull(purl);
     this.purl = purl;
   }
