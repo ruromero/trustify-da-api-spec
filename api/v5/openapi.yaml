@@ -640,6 +640,10 @@ components:
           description: URL of the source of the license information
     LicenseIdentifier:
       type: object
+      required:
+        - id
+        - name
+        - category
       properties:
         id:
           type: string
