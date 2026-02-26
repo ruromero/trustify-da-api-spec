@@ -202,7 +202,7 @@ paths:
         - {}
       requestBody:
         required: true
-        description: List of package URLs (purls) to fetch licenses for
+        description: List of package URLs (purls) to fetch licenses
         content:
           application/json:
             schema:
@@ -230,7 +230,12 @@ paths:
                     pkg:maven/org.apache/commons-lang3@3.12.0:
                       concluded:
                         identifiers:
-                          - MIT
+                          - id: MIT
+                            name: MIT License
+                            isDeprecated: false
+                            isOsiApproved: true
+                            isFsfLibre: true
+                            category: PERMISSIVE
                         expression: MIT
                         name: MIT License
                         category: PERMISSIVE
@@ -238,7 +243,12 @@ paths:
                         sourceUrl: https://github.com/apache/commons-lang3/blob/3.12.0/LICENSE.txt
                       evidence:
                         - identifiers:
-                            - MIT
+                            - id: MIT
+                              name: MIT License
+                              isDeprecated: false
+                              isOsiApproved: true
+                              isFsfLibre: true
+                              category: PERMISSIVE
                           expression: MIT
                           name: MIT License
                           category: PERMISSIVE
@@ -251,6 +261,72 @@ paths:
               schema:
                 type: string
                 description: Error message
+  /licenses/{spdxExpression}:
+    get:
+      operationId: fetchLicense
+      summary: Fetch a license by SPDX expression
+      security:
+        - BearerAuth: []
+        - DynamicVulnSourceAuth: []
+        - {}
+      parameters:
+        - name: spdxExpression
+          in: path
+          description: The SPDX expression of the license to fetch
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful license fetch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseInfo'
+        '404':
+          description: License not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Error message
+  /licenses/identify:
+    post:
+      operationId: identifyLicense
+      summary: Identify license(s) from uploaded license file content
+      security:
+        - BearerAuth: []
+        - DynamicVulnSourceAuth: []
+        - {}
+      requestBody:
+        required: true
+        description: License file to identify (e.g. LICENSE, COPYING, or other license text)
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: License file content to identify
+      responses:
+        '200':
+          description: Identified license(s) for the uploaded file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseIdentifier'
+        '404':
+          description: License not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: License not found
+
 components:
   securitySchemes:
     DynamicVulnSourceAuth:
@@ -500,6 +576,8 @@ components:
             $ref: '#/components/schemas/ProviderStatus'
           summary:
             $ref: '#/components/schemas/LicensesSummary'
+          projectLicense:
+            $ref: '#/components/schemas/LicenseInfo'
           packages:
             type: object
             description: Package purl as key, license result as value
@@ -516,11 +594,17 @@ components:
           description: Number of licenses that were concluded.
         permissive:
           type: integer
-        weak-copyleft:
+        weakCopyleft:
           type: integer
-        strong-copyleft:
+        strongCopyleft:
           type: integer
         unknown:
+          type: integer
+        deprecated:
+          type: integer
+        osiApproved:
+          type: integer
+        fsfLibre:
           type: integer
     PackageLicenseResult:
       type: object
@@ -538,7 +622,7 @@ components:
           type: array
           description: List of license identifiers found for the package
           items:
-            type: string
+            $ref: '#/components/schemas/LicenseIdentifier'
         expression:
           type: string
           description: SPDX license expression
@@ -547,15 +631,40 @@ components:
           description: Human readable license name
         category:
           description: Category of the license
-          type: string
-          enum:
-            - PERMISSIVE
-            - WEAK_COPYLEFT
-            - STRONG_COPYLEFT
-            - UNKNOWN
+          $ref: '#/components/schemas/LicenseCategory'
         source:
           type: string
           description: Source of the license information
         sourceUrl:
           type: string
           description: URL of the source of the license information
+    LicenseIdentifier:
+      type: object
+      required:
+        - id
+        - name
+        - category
+      properties:
+        id:
+          type: string
+          description: License identifier.
+          example: Apache-2.0
+        name:
+          type: string
+          description: Human readable license name.
+          example: Apache License 2.0
+        isDeprecated:
+          type: boolean
+        isOsiApproved:
+          type: boolean
+        isFsfLibre:
+          type: boolean
+        category:
+          $ref: '#/components/schemas/LicenseCategory'
+    LicenseCategory:
+      type: string
+      enum:
+        - PERMISSIVE
+        - WEAK_COPYLEFT
+        - STRONG_COPYLEFT
+        - UNKNOWN
