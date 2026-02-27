@@ -87,6 +87,7 @@ jobs:
       - name: Bump to next development version
         run: |
           mvn -B release:update-versions -DgenerateBackupPoms=false
+          mvn -B process-resources
           git add -A
           git commit -m "build(release): bump to next development version"
           git push origin "release/v${{ steps.version.outputs.version }}"

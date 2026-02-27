@@ -82,13 +82,19 @@ jobs:
         if: github.event_name == 'workflow_run'
         id: releasebranch
         run: |
-          echo "branch=$(cat releasebranch.txt)" >> "$GITHUB_OUTPUT"
+          BRANCH=$(cat releasebranch.txt)
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          # Derive release version and tag from branch (e.g. release/v2.0.5 -> 2.0.5, ref v2.0.5)
+          # Checkout the tag so we publish the release version (2.0.5), not the branch tip (2.0.6-SNAPSHOT)
+          VERSION="${BRANCH#release/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "ref=v$VERSION" >> "$GITHUB_OUTPUT"
           rm releasebranch.txt
 
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ (github.event_name == 'workflow_run' && steps.releasebranch.outputs.branch) || github.ref }}
+          ref: ${{ (github.event_name == 'workflow_run' && steps.releasebranch.outputs.ref) || github.ref }}
           fetch-depth: 0
 
       - name: Set up Java 17
