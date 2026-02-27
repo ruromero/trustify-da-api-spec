@@ -46,7 +46,6 @@ jobs:
           else
             mvn -B versions:set -DremoveSnapshot -DgenerateBackupPoms=false
           fi
-          mvn -B release:update-versions
           mvn -B process-resources
           mvn -B validate
 
@@ -57,6 +56,7 @@ jobs:
           echo "version=$V" >> $GITHUB_OUTPUT
 
       - name: Create release branch
+        id: release_branch
         run: |
           BRANCH="release/v${{ steps.version.outputs.version }}"
           git config user.name "${{ github.actor }}"
@@ -64,6 +64,7 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "build(release): release version ${{ steps.version.outputs.version }}"
+          echo "release_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
           # Force-push so we overwrite any existing release branch (e.g. from a previous run)
           git push --force origin "$BRANCH"
           echo "$BRANCH" > releasebranch.txt
@@ -78,25 +79,30 @@ jobs:
         with:
           name: "Release ${{ steps.version.outputs.version }}"
           tag_name: "v${{ steps.version.outputs.version }}"
-          target_commitish: "release/v${{ steps.version.outputs.version }}"
+          target_commitish: ${{ steps.release_branch.outputs.release_sha }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Pull Request for release + next version
+      - name: Bump to next development version
         run: |
-          BODY=$(cat <<- EOF
+          mvn -B release:update-versions
+          git add -A
+          git commit -m "build(release): bump to next development version"
+          git push origin "release/v${{ steps.version.outputs.version }}"
+
+      - name: Create Pull Request for release + next version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: |
             This PR contains the following changes:
 
             1. Release version bump to ${{ steps.version.outputs.version }}.
             2. Filtered resources (docs, JS) updated to reflect the release version.
             3. Next development version bump after the release.
-            EOF
-          )
+        run: |
           gh pr create \
             --title "build(release): release ${{ steps.version.outputs.version }} and bump to next development version" \
-            --body "$BODY" \
+            --body "$PR_BODY" \
             --base main \
             --head "release/v${{ steps.version.outputs.version }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
