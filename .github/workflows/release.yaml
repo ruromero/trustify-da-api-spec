@@ -64,7 +64,8 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "build(release): release version ${{ steps.version.outputs.version }}"
-          git push origin "$BRANCH"
+          # Force-push so we overwrite any existing release branch (e.g. from a previous run)
+          git push --force origin "$BRANCH"
           echo "$BRANCH" > releasebranch.txt
 
       - uses: actions/upload-artifact@v5
@@ -96,6 +97,6 @@ jobs:
             --title "build(release): release ${{ steps.version.outputs.version }} and bump to next development version" \
             --body "$BODY" \
             --base main \
-            --head "release/v${{ steps.bump.outputs.version }}"
+            --head "release/v${{ steps.version.outputs.version }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
